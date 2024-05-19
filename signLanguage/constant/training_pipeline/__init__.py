@@ -41,4 +41,4 @@ MODEL_TRAINER_BATCH_SIZE: int = 16
 MODEL PUSHER related constant start with MODEL_PUSHER var name
 """
 BUCKET_NAME = "sign-lang-mlops-2024"
-S3_MODEL_NAME = "best.pt"
+S3_MODEL_NAME = "my_model.pt"
