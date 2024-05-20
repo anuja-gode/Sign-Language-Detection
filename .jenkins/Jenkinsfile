@@ -5,6 +5,7 @@ pipeline {
     AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
     AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+    S3_BUCKET = 'sign-lang-mlops-2024'
   }
   
   stages {
@@ -13,6 +14,14 @@ pipeline {
         script {
           echo "Linting repository"
           echo "Running unit tests"
+        }
+      }
+    }
+
+    stage('Download Model from S3') {
+      steps {
+        script {
+          sh 'aws s3 cp s3://${S3_BUCKET}/my_model.pt ./yolov5/my_model.pt'
         }
       }
     }
