@@ -45,16 +45,22 @@ pipeline {
     stage('Continuous Deployment') {
       steps {
         sshagent(['ssh_key']) {
-          sh '''
-          ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 << EOF
-          cd /home/ubuntu/
-          wget https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml
-          wget https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml
-          export IMAGE_NAME=${ECR_REPOSITORY}:latest
-          aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com
-          docker-compose -f docker-compose.yml -f docker-compose.elk.yml up -d
-          EOF
-          '''
+          script {
+            echo "Deploying to remote server"
+            sh '''
+            ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 << EOF
+            cd /home/ubuntu/
+            echo "Downloading docker-compose files"
+            wget https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml
+            wget https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml
+            echo "Logging in to ECR from remote server"
+            export IMAGE_NAME=${ECR_REPOSITORY}:latest
+            aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com
+            echo "Starting Docker services"
+            docker-compose -f docker-compose.yml -f docker-compose.elk.yml up -d
+            EOF
+            '''
+          }
         }
       }
     }
@@ -62,7 +68,10 @@ pipeline {
 
   post {
     always {
-      sh 'docker system prune -f'
+      script {
+        echo "Cleaning up Docker system"
+        sh 'docker system prune -f'
+      }
     }
   }
 }
