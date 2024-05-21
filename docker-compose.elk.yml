@@ -16,7 +16,7 @@ services:
     ports:
       - "5044:5044"
     volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - /home/ubuntu/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.13.2
