@@ -51,22 +51,9 @@ pipeline {
         sshagent(['ssh_key']) {
           script {
             echo "Deploying to remote server"
-            // Downloading docker-compose files
-            sh '''
-              ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 '
-              cd /home/ubuntu/ &&
-              wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml &&
-              wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml
-              '
-            '''
-            // Logging in to ECR and starting Docker services
-            sh '''
-              ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 '
-              export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
-              aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com &&
-              docker-compose -f /home/ubuntu/docker-compose.yml -f /home/ubuntu/docker-compose.elk.yml up -d
-              '
-            '''
+            sh 'ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "cd /home/ubuntu/ && wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml && wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml"'
+            sh 'ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "export IMAGE_NAME=${ECR_REPOSITORY}:latest && aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com"'
+            sh 'ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "docker-compose -f /home/ubuntu/docker-compose.yml -f /home/ubuntu/docker-compose.elk.yml up -d"'
           }
         }
       }
