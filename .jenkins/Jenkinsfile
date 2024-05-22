@@ -1,82 +1,119 @@
 pipeline {
-  agent any
-  environment {
-    ECR_REPOSITORY = credentials('ECR_REPOSITORY')
-    AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
-    AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-    IMAGE_NAME = 'my-docker-image'
-  }
+    agent any
+    environment {
+        ECR_REPOSITORY = credentials('ECR_REPOSITORY')
+        AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        IMAGE_NAME = 'my-docker-image'
+    }
 
-  stages {
-    stage('Continuous Integration') {
-      steps {
-        script {
-          echo "Linting repository"
-          echo "Running unit tests"
-          // Add actual linting and testing commands here
+    stages {
+        stage('Continuous Integration') {
+            steps {
+                script {
+                    try {
+                        echo "Linting repository"
+                        // Add actual linting command here
+                        sh 'lint_command'
+                        echo "Running unit tests"
+                        // Run pytest
+                        sh 'pytest --maxfail=1 --disable-warnings -q'
+                    } catch (Exception e) {
+                        echo "CI failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        error "CI failed: ${e.getMessage()}"
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Login to ECR') {
-      steps {
-        script {
-          echo "Logging in to ECR"
-          sh 'aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com'
+        stage('Login to ECR') {
+            steps {
+                script {
+                    try {
+                        echo "Logging in to ECR"
+                        sh 'aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com'
+                    } catch (Exception e) {
+                        echo "ECR login failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        error "ECR login failed: ${e.getMessage()}"
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Build Image') {
-      steps {
-        script {
-          echo "Building Docker image"
-          sh 'docker build -t ${ECR_REPOSITORY}:latest .'
+        stage('Build Image') {
+            steps {
+                script {
+                    try {
+                        echo "Building Docker image"
+                        sh 'docker build -t ${ECR_REPOSITORY}:latest .'
+                    } catch (Exception e) {
+                        echo "Docker build failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        error "Docker build failed: ${e.getMessage()}"
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Push Image') {
-      steps {
-        script {
-          echo "Pushing Docker image to ECR"
-          sh 'docker push ${ECR_REPOSITORY}:latest'
+        stage('Push Image') {
+            steps {
+                script {
+                    try {
+                        echo "Pushing Docker image to ECR"
+                        sh 'docker push ${ECR_REPOSITORY}:latest'
+                    } catch (Exception e) {
+                        echo "Docker push failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        error "Docker push failed: ${e.getMessage()}"
+                    }
+                }
+            }
         }
-      }
-    }
 
-    stage('Continuous Deployment') {
-      steps {
-        sshagent(['ssh_key']) {
-          script {
-            echo "Deploying to remote server"
-            sh '''
-              ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "
-                cd /home/ubuntu/ && 
-                wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml && 
-                wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml
-              "
-            '''
-            sh '''
-              ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "
-                export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
-                aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com &&
-                IMAGE_NAME=${ECR_REPOSITORY}:latest docker-compose -f /home/ubuntu/docker-compose.yml -f /home/ubuntu/docker-compose.elk.yml up -d
-              "
-            '''
-          }
+        stage('Continuous Deployment') {
+            steps {
+                sshagent(['ssh_key']) {
+                    script {
+                        try {
+                            echo "Deploying to remote server"
+                            sh '''
+                                ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "
+                                    cd /home/ubuntu/ && 
+                                    wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.yml && 
+                                    wget -q https://raw.githubusercontent.com/anuja-gode/Sign-Language/main/docker-compose.elk.yml
+                                "
+                            '''
+                            sh '''
+                                ssh -o StrictHostKeyChecking=no -l ubuntu 13.49.184.78 "
+                                    export IMAGE_NAME=${ECR_REPOSITORY}:latest &&
+                                    aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-north-1.amazonaws.com &&
+                                    IMAGE_NAME=${ECR_REPOSITORY}:latest docker-compose -f /home/ubuntu/docker-compose.yml -f /home/ubuntu/docker-compose.elk.yml up -d
+                                "
+                            '''
+                        } catch (Exception e) {
+                            echo "Deployment failed: ${e.getMessage()}"
+                            currentBuild.result = 'FAILURE'
+                            error "Deployment failed: ${e.getMessage()}"
+                        }
+                    }
+                }
+            }
         }
-      }
     }
-  }
 
-  post {
-    always {
-      script {
-        echo "Cleaning up Docker system"
-        sh 'docker system prune -f'
-      }
+    post {
+        always {
+            script {
+                try {
+                    echo "Cleaning up Docker system"
+                    sh 'docker system prune -f'
+                } catch (Exception e) {
+                    echo "Docker cleanup failed: ${e.getMessage()}"
+                }
+            }
+        }
     }
-  }
 }
