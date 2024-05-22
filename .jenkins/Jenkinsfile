@@ -13,9 +13,6 @@ pipeline {
             steps {
                 script {
                     try {
-                        echo "Linting repository"
-                        // Add actual linting command here
-                        sh 'lint_command'
                         echo "Running unit tests"
                         // Run pytest
                         sh 'pytest --maxfail=1 --disable-warnings -q'
