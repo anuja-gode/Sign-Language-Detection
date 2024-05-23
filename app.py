@@ -52,12 +52,11 @@ def predictRoute():
         image = request.json['image']
         decodeImage(image, clApp.filename)
 
-        # Ensure YOLOv5 directory exists and is accessible
         if not os.path.exists("yolov5/"):
             app.logger.error("YOLOv5 directory not found")
             return Response("Internal Server Error: YOLOv5 directory not found", status=500)
 
-        os.system("cd yolov5/ && python detect.py --weights best.pt --img 416 --conf 0.5 --source ../data/inputImage.jpg")
+        os.system("cd yolov5/ && python detect.py --weights my_model.pt --img 416 --conf 0.5 --source ../data/inputImage.jpg")
         output_image_path = "yolov5/runs/detect/exp/inputImage.jpg"
 
         if not os.path.exists(output_image_path):
